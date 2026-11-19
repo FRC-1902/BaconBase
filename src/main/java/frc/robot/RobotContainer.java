@@ -1,96 +1,175 @@
 package frc.robot;
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.wpilibj.Filesystem;
-import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import frc.robot.commands.auto.AutoRoutines;
+import frc.robot.commands.drive.DriveCommands;
 import frc.robot.commands.drive.WaypointCommands;
+import frc.robot.field.AllianceFlipUtil;
 import frc.robot.field.WaypointGroup;
 import frc.robot.subsystems.ControllerSubsystem;
 import frc.robot.subsystems.ControllerSubsystem.Button;
 import frc.robot.subsystems.ControllerSubsystem.ControllerName;
-import frc.robot.subsystems.swervedrive.SwerveSubsystem;
-import frc.robot.subsystems.swervedrive.Vision;
-import java.io.File;
+import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.DriveConstants;
+import frc.robot.subsystems.drive.GyroIO;
+import frc.robot.subsystems.drive.GyroIOPigeon2;
+import frc.robot.subsystems.drive.GyroIOSim;
+import frc.robot.subsystems.drive.ModuleIO;
+import frc.robot.subsystems.drive.ModuleIOSim;
+import frc.robot.subsystems.drive.ModuleIOSpark;
+import frc.robot.subsystems.vision.Vision;
+import frc.robot.subsystems.vision.VisionConstants;
+import frc.robot.subsystems.vision.VisionIO;
+import frc.robot.subsystems.vision.VisionIOPhotonVision;
+import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
+import frc.robot.util.MapleSimUtil;
+import java.util.Optional;
+import java.util.function.DoubleSupplier;
+import org.ironmaple.simulation.SimulatedArena;
+import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.littletonrobotics.junction.Logger;
-import swervelib.SwerveInputStream;
+import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 public class RobotContainer {
 
+  private static final Pose2d SIM_STARTING_POSE = new Pose2d(3.0, 4.0, Rotation2d.kZero);
+
   private final ControllerSubsystem controllers = ControllerSubsystem.getInstance();
 
-  private final SwerveSubsystem drivebase =
-      new SwerveSubsystem(
-          new File(Filesystem.getDeployDirectory(), Constants.Drive.SWERVE_CONFIG_DIRECTORY));
+  private final Drive drive;
 
-  private final Vision vision = new Vision();
+  private final Vision vision;
 
-  private final SendableChooser<Command> autoChooser;
+  private final LoggedDashboardChooser<Command> autoChooser;
 
-  private final SwerveInputStream driveStream =
-      SwerveInputStream.of(
-              drivebase.getSwerveDrive(),
-              () -> shapeAxis(controllers.getCommandController(ControllerName.DRIVE).getLeftY()),
-              () -> shapeAxis(controllers.getCommandController(ControllerName.DRIVE).getLeftX()))
-          .withControllerRotationAxis(
-              () ->
-                  -MathUtil.applyDeadband(
-                          controllers.getCommandController(ControllerName.DRIVE).getRightX(),
-                          Constants.Operator.ROTATION_DEADBAND)
-                      * Constants.Operator.ROTATION_SCALE)
-          .scaleTranslation(Constants.Operator.TRANSLATION_SCALE)
-          .allianceRelativeControl(true);
+  private SwerveDriveSimulation driveSimulation;
 
   public RobotContainer() {
-    WaypointCommands.registerNamedCommands(drivebase);
-    autoChooser = com.pathplanner.lib.auto.AutoBuilder.buildAutoChooser();
-    autoChooser.setDefaultOption(Constants.Auto.DEFAULT_AUTO_NAME, Commands.none());
-    SmartDashboard.putData("Auto Chooser", autoChooser);
+    switch (Constants.CURRENT_MODE) {
+      case REAL -> {
+        drive =
+            new Drive(
+                new GyroIOPigeon2(),
+                new ModuleIOSpark(DriveConstants.MODULES[0]),
+                new ModuleIOSpark(DriveConstants.MODULES[1]),
+                new ModuleIOSpark(DriveConstants.MODULES[2]),
+                new ModuleIOSpark(DriveConstants.MODULES[3]),
+                pose -> {});
+        VisionIO[] cameras = new VisionIO[VisionConstants.CAMERAS.length];
+        for (int i = 0; i < cameras.length; i++) {
+          cameras[i] = new VisionIOPhotonVision(VisionConstants.CAMERAS[i]);
+        }
+        vision = new Vision(cameras);
+      }
+      case SIM -> {
+        driveSimulation =
+            new SwerveDriveSimulation(MapleSimUtil.driveTrainConfig(), SIM_STARTING_POSE);
+        SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
+        drive =
+            new Drive(
+                new GyroIOSim(driveSimulation.getGyroSimulation()),
+                new ModuleIOSim(driveSimulation.getModules()[0]),
+                new ModuleIOSim(driveSimulation.getModules()[1]),
+                new ModuleIOSim(driveSimulation.getModules()[2]),
+                new ModuleIOSim(driveSimulation.getModules()[3]),
+                pose -> {
+                  driveSimulation.setSimulationWorldPose(pose);
+                  VisionIOPhotonVisionSim.resetSimulationPose(pose);
+                });
+        VisionIO[] cameras = new VisionIO[VisionConstants.CAMERAS.length];
+        for (int i = 0; i < cameras.length; i++) {
+          cameras[i] =
+              new VisionIOPhotonVisionSim(
+                  VisionConstants.CAMERAS[i], driveSimulation::getSimulatedDriveTrainPose);
+        }
+        vision = new Vision(cameras);
+        drive.setPose(SIM_STARTING_POSE);
+      }
+      default -> {
+        drive =
+            new Drive(
+                new GyroIO() {},
+                new ModuleIO() {},
+                new ModuleIO() {},
+                new ModuleIO() {},
+                new ModuleIO() {},
+                pose -> {});
+        VisionIO[] cameras = new VisionIO[VisionConstants.CAMERAS.length];
+        for (int i = 0; i < cameras.length; i++) {
+          cameras[i] = new VisionIO() {};
+        }
+        vision = new Vision(cameras);
+      }
+    }
+
+    WaypointCommands.registerNamedCommands(drive);
+    AutoRoutines.configure(drive);
+    autoChooser = AutoRoutines.buildChooser(drive);
     configureBindings();
   }
 
-  private static double shapeAxis(double input) {
-    double deadbanded = MathUtil.applyDeadband(input, Constants.Operator.TRANSLATION_DEADBAND);
-    return Constants.Operator.INPUT_LINEAR_WEIGHT * deadbanded
-        + Constants.Operator.INPUT_CUBIC_WEIGHT * Math.pow(deadbanded, 3);
+  private DoubleSupplier driverForward() {
+    return () -> -controllers.getCommandController(ControllerName.DRIVE).getLeftY();
+  }
+
+  private DoubleSupplier driverLeft() {
+    return () -> -controllers.getCommandController(ControllerName.DRIVE).getLeftX();
+  }
+
+  private DoubleSupplier driverRotation() {
+    return () -> -controllers.getCommandController(ControllerName.DRIVE).getRightX();
   }
 
   private void configureBindings() {
-    drivebase.setDefaultCommand(drivebase.driveFieldOriented(driveStream));
+    drive.setDefaultCommand(
+        DriveCommands.joystickDrive(drive, driverForward(), driverLeft(), driverRotation()));
 
     controllers
         .getTrigger(ControllerName.DRIVE, Button.X)
         .onTrue(
-            drivebase
-                .runOnce(drivebase::zeroGyroWithAlliance)
+            Commands.runOnce(
+                    () ->
+                        drive.resetHeading(
+                            AllianceFlipUtil.shouldFlip() ? Rotation2d.k180deg : Rotation2d.kZero),
+                    drive)
+                .ignoringDisable(true)
                 .alongWith(Commands.runOnce(() -> controllers.vibrate(ControllerName.DRIVE))));
 
     controllers
         .getTrigger(ControllerName.DRIVE, Button.A)
-        .whileTrue(WaypointCommands.holdSnapToNearest(drivebase, WaypointGroup.PLACEHOLDER));
+        .whileTrue(WaypointCommands.holdAlignToNearest(drive, WaypointGroup.PLACEHOLDER));
 
     controllers
         .getTrigger(ControllerName.DRIVE, Button.B)
         .whileTrue(
-            WaypointCommands.aimAtNearest(drivebase, driveStream, WaypointGroup.PLACEHOLDER_2));
-    controllers
-        .getTrigger(ControllerName.DRIVE, Button.Y)
-        .whileTrue(WaypointCommands.pathThenSnapToNearest(drivebase, WaypointGroup.PLACEHOLDER_3));
+            WaypointCommands.aimAtNearest(
+                drive, driverForward(), driverLeft(), WaypointGroup.PLACEHOLDER_2));
 
     controllers
-        .getTrigger(ControllerName.DRIVE, Button.LB)
-        .whileTrue(drivebase.run(drivebase::lock));
+        .getTrigger(ControllerName.DRIVE, Button.Y)
+        .whileTrue(WaypointCommands.pathThenAlignToNearest(drive, WaypointGroup.PLACEHOLDER_3));
+
+    controllers.getTrigger(ControllerName.DRIVE, Button.LB).whileTrue(drive.run(drive::stopWithX));
   }
 
   public Command getAutonomousCommand() {
-    return autoChooser.getSelected();
+    return autoChooser.get();
   }
 
-  public void setMotorBrake(boolean brake) {
-    drivebase.setMotorBrake(brake);
+  public void setDriveBrakeMode(boolean enabled) {
+    drive.setDriveBrakeMode(enabled);
+  }
+
+  public void updateSimulation() {
+    if (driveSimulation == null) {
+      return;
+    }
+    SimulatedArena.getInstance().simulationPeriodic();
+    Logger.recordOutput(
+        "FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());
   }
 
   public void logDriverInputs() {
@@ -99,34 +178,20 @@ public class RobotContainer {
     Logger.recordOutput("Driver/RawLeftX", driver.getLeftX());
     Logger.recordOutput("Driver/RawRightX", driver.getRightX());
     Logger.recordOutput(
-        "Driver/ShapedRotation",
-        -MathUtil.applyDeadband(driver.getRightX(), Constants.Operator.ROTATION_DEADBAND)
-            * Constants.Operator.ROTATION_SCALE);
-    Logger.recordOutput(
-        "Driver/DefaultCommandActive",
-        drivebase.getCurrentCommand() == drivebase.getDefaultCommand());
-    Logger.recordOutput(
         "Driver/ActiveCommand",
-        drivebase.getCurrentCommand() == null ? "none" : drivebase.getCurrentCommand().getName());
+        drive.getCurrentCommand() == null ? "none" : drive.getCurrentCommand().getName());
   }
 
-  public void updateVision() {
-    if (RobotBase.isSimulation()) {
-      drivebase.getSimulationPose().ifPresent(vision::updateSimulation);
-    }
-    vision.updatePoseEstimation(drivebase.getSwerveDrive());
-    Logger.recordOutput("Auto/Selected", String.valueOf(autoChooser.getSelected()));
+  public Optional<Pose2d> getSimulationGroundTruthPose() {
+    return Optional.ofNullable(driveSimulation)
+        .map(SwerveDriveSimulation::getSimulatedDriveTrainPose);
   }
 
-  public SwerveSubsystem getDrivebase() {
-    return drivebase;
+  public Drive getDrive() {
+    return drive;
   }
 
   public Vision getVision() {
     return vision;
-  }
-
-  public SwerveInputStream getDriveStream() {
-    return driveStream;
   }
 }

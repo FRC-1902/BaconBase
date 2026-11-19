@@ -11,18 +11,6 @@ import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.RadiansPerSecondPerSecond;
 import static edu.wpi.first.units.Units.Seconds;
 
-import edu.wpi.first.math.Matrix;
-import edu.wpi.first.math.VecBuilder;
-import edu.wpi.first.math.controller.ProfiledPIDController;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.math.numbers.N1;
-import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularAcceleration;
 import edu.wpi.first.units.measure.AngularVelocity;
@@ -48,36 +36,15 @@ public final class Constants {
 
   public static final RobotMode CURRENT_MODE = RobotBase.isReal() ? RobotMode.REAL : SIM_MODE;
 
-  public static final class Drive {
+  public static final double LOOP_PERIOD_SECONDS = 0.02;
 
-    private Drive() {}
-
-    public static final String SWERVE_CONFIG_DIRECTORY = "swerve/neo";
-
-    public static final LinearVelocity MAX_SPEED = MetersPerSecond.of(Units.feetToMeters(14.5));
-
-    public static final Pose2d STARTING_POSE = new Pose2d(3.0, 4.0, Rotation2d.kZero);
-
-    public static final Time WHEEL_LOCK_TIME = Seconds.of(10);
-
-    public static final boolean HEADING_CORRECTION = false;
-
-    public static final boolean COSINE_COMPENSATION = false;
-
-    public static final boolean ANGULAR_VELOCITY_COMPENSATION_TELEOP = true;
-
-    public static final boolean ANGULAR_VELOCITY_COMPENSATION_AUTO = false;
-
-    public static final double ANGULAR_VELOCITY_COEFFICIENT = 0.025;
-
-    public static final boolean CHASSIS_DISCRETIZATION = true;
-
-    public static final double CHASSIS_DISCRETIZATION_SECONDS = 0.02;
-
-    public static final boolean MODULE_ENCODER_AUTO_SYNCHRONIZE = false;
-
-    public static final double MODULE_ENCODER_AUTO_SYNCHRONIZE_DEADBAND = 1.0;
-  }
+  // TODO: TUNING MODE
+  // How to use:
+  //   1. Set to true and deploy.
+  //   2. Open Elastic or AdvantageScope -> NetworkTables -> "/Tuning" and edit values live.
+  //   3. Copy every final value back into the code (dashboard values are lost on reboot).
+  //   4. Set back to false before competition.
+  public static final boolean TUNING_MODE = false;
 
   public static final class Operator {
 
@@ -87,6 +54,11 @@ public final class Constants {
 
     public static final int MANIP_CONTROLLER_PORT = 1;
 
+    // TODO: STICK DEADBANDS (0 to 1)
+    // How to tune:
+    //   1. Enable teleop and let go of both sticks.
+    //   2. In AdvantageScope plot "Driver/RawLeftX", "Driver/RawLeftY", "Driver/RawRightX".
+    //   3. Set each deadband 0.02 above the largest value the stick rests at.
     public static final double TRANSLATION_DEADBAND = 0.1;
 
     public static final double ROTATION_DEADBAND = 0.1;
@@ -95,9 +67,27 @@ public final class Constants {
 
     public static final double ROTATION_SCALE = 0.4;
 
+    // TODO: STICK RESPONSE CURVE (the two weights must add up to 1.0)
+    // How to tune:
+    //   1. Have the driver line up on a target using only the sticks.
+    //   2. If small precise moves are hard, move weight to cubic (e.g. 0.6 / 0.4).
+    //   3. If the robot feels laggy to start moving, move weight to linear (e.g. 0.9 / 0.1).
     public static final double INPUT_LINEAR_WEIGHT = 0.8;
 
     public static final double INPUT_CUBIC_WEIGHT = 0.2;
+
+    // TODO: HEADING HOLD
+    // How to tune ("/Tuning/Teleop/HeadingHoldKp", "/Tuning/Teleop/HeadingHoldDelaySeconds"):
+    //   1. Drive full speed straight forward.
+    //   2. Plot "Teleop/HeadingHoldTarget" and the rotation of "RobotState/EstimatedPose".
+    //   3. If heading drifts more than 2 deg, raise kP by 1.0. If it wiggles, lower kP by 1.0.
+    //   4. If it snaps back after you stop spinning, raise the delay by 0.05 s.
+    //   5. Set HEADING_HOLD_ENABLED = false if the driver doesn't want it.
+    public static final boolean HEADING_HOLD_ENABLED = true;
+
+    public static final double HEADING_HOLD_KP = 4.0;
+
+    public static final Time HEADING_HOLD_DELAY = Seconds.of(0.25);
 
     public static final long RUMBLE_DURATION_MILLIS = 500;
 
@@ -108,79 +98,108 @@ public final class Constants {
 
     private Alignment() {}
 
-    public static final double SNAP_TRANSLATION_P = 5.0;
+    // TODO: DRIVE-TO-POSE TRANSLATION
+    // How to tune ("/Tuning/DriveToPose/..."):
+    //   1. Start 2 m from a waypoint and hold the align button.
+    //   2. Plot "DriveToPose/DistanceError", "DriveToPose/DistanceSetpoint", "DriveToPose/AtGoal".
+    //   3. Raise max velocity/acceleration until the robot slides, then lower them 20%.
+    //   4. Raise kP by 0.5 until it overshoots or hunts at the end, then lower it by 1.0.
+    //   5. Only add kD (steps of 0.05) if overshoot remains. Lower it if the robot buzzes.
+    //   6. Run 10 aligns from different sides; final error must be under TRANSLATION_TOLERANCE.
+    public static final double TRANSLATION_KP = 4.0;
 
-    public static final double SNAP_TRANSLATION_I = 0.0;
+    public static final double TRANSLATION_KD = 0.0;
 
-    public static final double SNAP_TRANSLATION_D = 0.0;
+    public static final LinearVelocity TRANSLATION_MAX_VELOCITY = MetersPerSecond.of(3.5);
 
-    public static final LinearVelocity SNAP_MAX_VELOCITY = MetersPerSecond.of(3.0);
+    public static final LinearAcceleration TRANSLATION_MAX_ACCELERATION =
+        MetersPerSecondPerSecond.of(5.0);
 
-    public static final LinearAcceleration SNAP_MAX_ACCELERATION = MetersPerSecondPerSecond.of(3.0);
+    // TODO: DRIVE-TO-POSE ROTATION
+    // How to tune ("/Tuning/DriveToPose/Rotation..."):
+    //   1. Same setup as translation, plot "DriveToPose/RotationError".
+    //   2. Raise kP by 0.5 until the final heading overshoots, then lower it by 1.0.
+    //   3. If rotation finishes long after translation, raise ROTATION_MAX_ACCELERATION.
+    public static final double ROTATION_KP = 4.0;
 
-    public static final double SNAP_ROTATION_P = 4.0;
+    public static final double ROTATION_KD = 0.0;
 
-    public static final double SNAP_ROTATION_I = 0.0;
+    public static final AngularVelocity ROTATION_MAX_VELOCITY = DegreesPerSecond.of(500);
 
-    public static final double SNAP_ROTATION_D = 0.0;
+    public static final AngularAcceleration ROTATION_MAX_ACCELERATION =
+        RadiansPerSecondPerSecond.of(20.0);
 
-    public static final AngularVelocity SNAP_MAX_ANGULAR_VELOCITY = DegreesPerSecond.of(540);
+    // TODO: FEEDFORWARD FADE RADII (meters)
+    // How to tune:
+    //   1. Watch the end of an align in "DriveToPose/DistanceError".
+    //   2. If it overshoots by a few cm and comes back, raise FF_MAX_RADIUS by 0.02.
+    //   3. If the last few cm creep in slowly, lower FF_MAX_RADIUS by 0.02.
+    public static final Distance FF_MIN_RADIUS = Meters.of(0.01);
 
-    public static final AngularAcceleration SNAP_MAX_ANGULAR_ACCELERATION =
-        DegreesPerSecondPerSecond.of(720);
+    public static final Distance FF_MAX_RADIUS = Meters.of(0.05);
 
-    public static final Distance SNAP_TRANSLATION_TOLERANCE = Meters.of(0.05);
+    // TODO: ALIGNMENT TOLERANCES
+    // How to tune:
+    //   1. Measure how far off your mechanism can be and still score. Set TRANSLATION_TOLERANCE
+    //      and ROTATION_TOLERANCE to half of that.
+    //   2. If aligns time out, plot "DriveToPose/DistanceError" while parked. If it jumps more than
+    //      the tolerance, fix vision (VisionConstants) before loosening tolerances.
+    //   3. Raise SETTLE_TIME if the robot is still rocking when it scores.
+    public static final Distance TRANSLATION_TOLERANCE = Meters.of(0.015);
 
-    public static final Angle SNAP_ROTATION_TOLERANCE = Degrees.of(3);
+    public static final Angle ROTATION_TOLERANCE = Degrees.of(1.0);
 
-    public static final Time SNAP_TIMEOUT = Seconds.of(3);
+    public static final LinearVelocity VELOCITY_TOLERANCE = MetersPerSecond.of(0.05);
 
+    public static final AngularVelocity OMEGA_TOLERANCE = RadiansPerSecond.of(0.1);
+
+    public static final Time SETTLE_TIME = Seconds.of(0.1);
+
+    public static final Time TIMEOUT = Seconds.of(3.0);
+
+    // TODO: AIM-AT-TARGET
+    // How to tune:
+    //   1. Hold the aim button while strafing past the target. Plot "Alignment/AimError".
+    //   2. If the robot can't stay pointed at the target, lower AIM_TRANSLATION_SCALE.
+    //   3. If the heading lags behind the target while moving, raise AIM_LOOKAHEAD by 0.1 s.
+    //      If it leads, lower it.
+    //   4. Set AIM_LOCK_TOLERANCE to the largest aim error you can still score from.
     public static final double AIM_TRANSLATION_SCALE = 0.3;
 
     public static final Time AIM_LOOKAHEAD = Milliseconds.of(500);
 
     public static final Angle AIM_LOCK_TOLERANCE = Degrees.of(3);
-
-    public static ProfiledPIDController translationController() {
-      return new ProfiledPIDController(
-          SNAP_TRANSLATION_P,
-          SNAP_TRANSLATION_I,
-          SNAP_TRANSLATION_D,
-          new TrapezoidProfile.Constraints(
-              SNAP_MAX_VELOCITY.in(MetersPerSecond),
-              SNAP_MAX_ACCELERATION.in(MetersPerSecondPerSecond)));
-    }
-
-    public static ProfiledPIDController rotationController() {
-      ProfiledPIDController controller =
-          new ProfiledPIDController(
-              SNAP_ROTATION_P,
-              SNAP_ROTATION_I,
-              SNAP_ROTATION_D,
-              new TrapezoidProfile.Constraints(
-                  SNAP_MAX_ANGULAR_VELOCITY.in(RadiansPerSecond),
-                  SNAP_MAX_ANGULAR_ACCELERATION.in(RadiansPerSecondPerSecond)));
-      controller.enableContinuousInput(-Math.PI, Math.PI);
-      return controller;
-    }
   }
 
   public static final class Auto {
 
     private Auto() {}
 
-    public static final double TRANSLATION_P = 5.0;
+    // TODO: PATHPLANNER FOLLOWING GAINS
+    // How to tune:
+    //   1. Finish DriveConstants tuning first.
+    //   2. Run a 3 m straight path and a path with a 90 deg turn at full speed.
+    //   3. Plot "PathPlanner/targetPose" vs "RobotState/EstimatedPose" and
+    // "PathPlanner/inaccuracy".
+    //   4. If the robot always lags behind the target, fix drive kV/kA or wheel radius instead.
+    //   5. If it weaves, lower P by 1.0. If it corrects too slowly, raise P by 1.0.
+    public static final double TRANSLATION_P = 4.0;
 
     public static final double TRANSLATION_I = 0.0;
 
     public static final double TRANSLATION_D = 0.0;
 
-    public static final double ROTATION_P = 5.0;
+    public static final double ROTATION_P = 4.0;
 
     public static final double ROTATION_I = 0.0;
 
     public static final double ROTATION_D = 0.0;
 
+    // TODO: PATHFINDING CONSTRAINTS
+    // How to tune:
+    //   1. Run a "Path ..." named command or the Y button.
+    //   2. Raise velocity and acceleration by 0.5 until wheels slip or bumpers hit field elements,
+    //      then lower them by 0.5.
     public static final LinearVelocity PATHFIND_MAX_VELOCITY = MetersPerSecond.of(3.0);
 
     public static final LinearAcceleration PATHFIND_MAX_ACCELERATION =
@@ -193,86 +212,15 @@ public final class Constants {
 
     public static final LinearVelocity PATHFIND_GOAL_END_VELOCITY = MetersPerSecond.of(0);
 
+    // TODO: PATH CHAINING DISTANCES
+    // How to tune:
+    //   1. Run your autos and read "Auto/Chain/ReanchorDistance" at the start of each path.
+    //   2. Set CHAIN_MAX_REANCHOR_DISTANCE to the largest normal value plus 0.5 m.
+    public static final Distance CHAIN_MIN_REANCHOR_DISTANCE = Meters.of(0.02);
+
+    public static final Distance CHAIN_MAX_REANCHOR_DISTANCE = Meters.of(1.5);
+
     public static final String DEFAULT_AUTO_NAME = "Do Nothing";
-  }
-
-  public static final class VisionConstants {
-
-    private VisionConstants() {}
-
-    public record CameraConfig(String name, Transform3d robotToCamera) {}
-
-    public static final Matrix<N3, N1> SINGLE_TAG_STD_DEVS = VecBuilder.fill(0.3, 0.3, 0.5);
-
-    public static final Matrix<N3, N1> MULTI_TAG_STD_DEVS = VecBuilder.fill(0.1, 0.1, 0.2);
-
-    public static final double MAX_AMBIGUITY = 0.2;
-
-    public static final Distance MAX_SINGLE_TAG_DISTANCE = Meters.of(4.0);
-
-    public static final double STD_DEV_DISTANCE_DIVISOR = 30.0;
-
-    public static final boolean TRUST_SINGLE_TAG_ROTATION = false;
-
-    public static final Distance MAX_Z_ERROR = Meters.of(0.5);
-
-    public static final CameraConfig FRONT_LEFT =
-        new CameraConfig(
-            "frontLeft",
-            new Transform3d(
-                new Translation3d(
-                    Units.inchesToMeters(10.0),
-                    Units.inchesToMeters(10.0),
-                    Units.inchesToMeters(8.0)),
-                new Rotation3d(0.0, Math.toRadians(-20.0), Math.toRadians(30.0))));
-
-    public static final CameraConfig FRONT_RIGHT =
-        new CameraConfig(
-            "frontRight",
-            new Transform3d(
-                new Translation3d(
-                    Units.inchesToMeters(10.0),
-                    Units.inchesToMeters(-10.0),
-                    Units.inchesToMeters(8.0)),
-                new Rotation3d(0.0, Math.toRadians(-20.0), Math.toRadians(-30.0))));
-
-    public static final CameraConfig BACK_LEFT =
-        new CameraConfig(
-            "backLeft",
-            new Transform3d(
-                new Translation3d(
-                    Units.inchesToMeters(-10.0),
-                    Units.inchesToMeters(10.0),
-                    Units.inchesToMeters(8.0)),
-                new Rotation3d(0.0, Math.toRadians(-20.0), Math.toRadians(150.0))));
-
-    public static final CameraConfig BACK_RIGHT =
-        new CameraConfig(
-            "backRight",
-            new Transform3d(
-                new Translation3d(
-                    Units.inchesToMeters(-10.0),
-                    Units.inchesToMeters(-10.0),
-                    Units.inchesToMeters(8.0)),
-                new Rotation3d(0.0, Math.toRadians(-20.0), Math.toRadians(-150.0))));
-
-    public static final CameraConfig[] CAMERAS = {FRONT_LEFT, FRONT_RIGHT, BACK_LEFT, BACK_RIGHT};
-
-    public static final int SIM_RESOLUTION_WIDTH = 960;
-
-    public static final int SIM_RESOLUTION_HEIGHT = 720;
-
-    public static final Angle SIM_DIAGONAL_FOV = Degrees.of(70);
-
-    public static final double SIM_CALIBRATION_ERROR_PIXELS = 0.25;
-
-    public static final double SIM_CALIBRATION_ERROR_STD_DEV_PIXELS = 0.08;
-
-    public static final double SIM_FRAMES_PER_SECOND = 30.0;
-
-    public static final double SIM_AVERAGE_LATENCY_MILLIS = 35.0;
-
-    public static final double SIM_LATENCY_STD_DEV_MILLIS = 5.0;
   }
 
   public static final class Power {
@@ -281,6 +229,10 @@ public final class Constants {
 
     public static final int PDH_ID = 1;
 
+    // TODO: BATTERY ALERTS (volts)
+    // How to use:
+    //   1. Swap the battery when the "Low Battery" alert shows in the pits.
+    //   2. If "Critical Battery" shows during a match, check the battery, breaker and connections.
     public static final double BATTERY_WARNING_VOLTAGE = 12.0;
 
     public static final double BATTERY_CRITICAL_VOLTAGE = 11.5;

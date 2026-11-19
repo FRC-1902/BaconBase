@@ -1,12 +1,15 @@
 package frc.robot.commands.drive;
 
-import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.commands.PathfindingCommand;
 import com.pathplanner.lib.path.PathConstraints;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.Constants;
-import frc.robot.subsystems.swervedrive.SwerveSubsystem;
+import frc.robot.RobotState;
+import frc.robot.commands.auto.AutoRoutines;
+import frc.robot.subsystems.drive.Drive;
+import frc.robot.subsystems.drive.DriveConstants;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
@@ -20,13 +23,16 @@ public class PathToWaypoint extends Command {
           Constants.Auto.PATHFIND_MAX_ANGULAR_VELOCITY,
           Constants.Auto.PATHFIND_MAX_ANGULAR_ACCELERATION);
 
+  private final Drive drive;
+
   private final Supplier<Optional<Pose2d>> targetSupplier;
 
   private Command pathCommand = Commands.none();
 
-  public PathToWaypoint(SwerveSubsystem swerve, Supplier<Optional<Pose2d>> targetSupplier) {
+  public PathToWaypoint(Drive drive, Supplier<Optional<Pose2d>> targetSupplier) {
+    this.drive = drive;
     this.targetSupplier = targetSupplier;
-    addRequirements(swerve);
+    addRequirements(drive);
   }
 
   @Override
@@ -36,9 +42,17 @@ public class PathToWaypoint extends Command {
       pathCommand = Commands.none();
     } else {
       Logger.recordOutput("Alignment/PathTarget", target.get());
+      RobotState robotState = RobotState.getInstance();
       pathCommand =
-          AutoBuilder.pathfindToPose(
-              target.get(), CONSTRAINTS, Constants.Auto.PATHFIND_GOAL_END_VELOCITY);
+          new PathfindingCommand(
+              target.get(),
+              CONSTRAINTS,
+              Constants.Auto.PATHFIND_GOAL_END_VELOCITY,
+              robotState::getPose,
+              robotState::getRobotVelocity,
+              drive::runPathVelocity,
+              AutoRoutines.PATH_CONTROLLER,
+              DriveConstants.PATHPLANNER_CONFIG);
     }
     pathCommand.initialize();
   }

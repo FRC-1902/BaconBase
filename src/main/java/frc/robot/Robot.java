@@ -2,6 +2,7 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.Seconds;
 
+import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DataLogManager;
@@ -13,6 +14,8 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.commands.auto.AutoRoutines;
+import org.littletonrobotics.junction.AutoLogOutputManager;
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
 import org.littletonrobotics.junction.Logger;
@@ -23,13 +26,18 @@ import org.littletonrobotics.urcl.URCL;
 
 public class Robot extends LoggedRobot {
 
-  private final Timer wheelLockTimer = new Timer();
+  private static final Time COAST_AFTER_DISABLED_TIME = Seconds.of(10);
+
+  private final Timer coastTimer = new Timer();
+
   private final Timer batteryCheckTimer = new Timer();
 
   private final Alert lowBatteryAlert = new Alert("Low Battery", AlertType.kWarning);
+
   private final Alert criticalBatteryAlert = new Alert("Critical Battery", AlertType.kError);
 
   private RobotContainer robotContainer;
+
   private Command autonomousCommand;
 
   @SuppressWarnings("resource")
@@ -53,12 +61,14 @@ public class Robot extends LoggedRobot {
       }
     }
 
+    AutoLogOutputManager.addObject(RobotState.getInstance());
     Logger.start();
     DataLogManager.start();
 
     robotContainer = new RobotContainer();
 
     SmartDashboard.putData(CommandScheduler.getInstance());
+    CommandScheduler.getInstance().schedule(AutoRoutines.warmupCommand());
 
     if (isSimulation()) {
       DriverStation.silenceJoystickConnectionWarning(true);
@@ -70,30 +80,27 @@ public class Robot extends LoggedRobot {
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
-    robotContainer.updateVision();
     robotContainer.logDriverInputs();
     checkBatteryVoltage();
   }
 
   @Override
   public void disabledInit() {
-    robotContainer.setMotorBrake(true);
-    wheelLockTimer.reset();
-    wheelLockTimer.start();
+    robotContainer.setDriveBrakeMode(true);
+    coastTimer.restart();
   }
 
   @Override
   public void disabledPeriodic() {
-    if (wheelLockTimer.hasElapsed(Constants.Drive.WHEEL_LOCK_TIME.in(Seconds))) {
-      robotContainer.setMotorBrake(false);
-      wheelLockTimer.stop();
-      wheelLockTimer.reset();
+    if (coastTimer.isRunning() && coastTimer.hasElapsed(COAST_AFTER_DISABLED_TIME.in(Seconds))) {
+      robotContainer.setDriveBrakeMode(false);
+      coastTimer.stop();
     }
   }
 
   @Override
   public void autonomousInit() {
-    robotContainer.setMotorBrake(true);
+    robotContainer.setDriveBrakeMode(true);
     autonomousCommand = robotContainer.getAutonomousCommand();
     if (autonomousCommand != null) {
       CommandScheduler.getInstance().schedule(autonomousCommand);
@@ -107,7 +114,7 @@ public class Robot extends LoggedRobot {
     } else {
       CommandScheduler.getInstance().cancelAll();
     }
-    robotContainer.setMotorBrake(true);
+    robotContainer.setDriveBrakeMode(true);
   }
 
   @Override
@@ -115,8 +122,13 @@ public class Robot extends LoggedRobot {
     CommandScheduler.getInstance().cancelAll();
   }
 
+  @Override
+  public void simulationPeriodic() {
+    robotContainer.updateSimulation();
+  }
+
   private void checkBatteryVoltage() {
-    if (!batteryCheckTimer.hasElapsed(Constants.Power.BATTERY_CHECK_INTERVAL)) {
+    if (!batteryCheckTimer.hasElapsed(Constants.Power.BATTERY_CHECK_INTERVAL.in(Seconds))) {
       return;
     }
     batteryCheckTimer.reset();
