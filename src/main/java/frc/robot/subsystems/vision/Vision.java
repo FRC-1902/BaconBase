@@ -102,6 +102,9 @@ public class Vision extends SubsystemBase {
 
   @Override
   public void periodic() {
+    if (!VisionConstants.ENABLED) {
+      return;
+    }
     for (int i = 0; i < io.length; i++) {
       io[i].updateInputs(inputs[i]);
       Logger.processInputs(cameraKey(i), inputs[i]);

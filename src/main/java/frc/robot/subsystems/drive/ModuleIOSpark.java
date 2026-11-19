@@ -128,6 +128,9 @@ public class ModuleIOSpark implements ModuleIO {
 
     cancoder = new CANcoder(setup.encoderId(), DriveConstants.CAN_BUS);
     CANcoderConfiguration cancoderConfig = new CANcoderConfiguration();
+    PhoenixUtil.tryUntilOk(
+        CONFIG_ATTEMPTS,
+        () -> cancoder.getConfigurator().refresh(cancoderConfig, CONFIG_TIMEOUT_SECONDS));
     cancoderConfig.MagnetSensor.SensorDirection =
         hardware.encoderClockwisePositive()
             ? SensorDirectionValue.Clockwise_Positive

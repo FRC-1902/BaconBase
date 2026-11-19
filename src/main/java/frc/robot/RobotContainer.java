@@ -22,12 +22,14 @@ import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOSpark;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
+import frc.robot.subsystems.vision.VisionConstants.CameraConfig;
 import frc.robot.subsystems.vision.VisionIO;
 import frc.robot.subsystems.vision.VisionIOPhotonVision;
 import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.MapleSimUtil;
 import java.util.Optional;
 import java.util.function.DoubleSupplier;
+import java.util.function.Function;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.littletonrobotics.junction.Logger;
@@ -58,11 +60,7 @@ public class RobotContainer {
                 new ModuleIOSpark(DriveConstants.MODULES[2]),
                 new ModuleIOSpark(DriveConstants.MODULES[3]),
                 pose -> {});
-        VisionIO[] cameras = new VisionIO[VisionConstants.CAMERAS.length];
-        for (int i = 0; i < cameras.length; i++) {
-          cameras[i] = new VisionIOPhotonVision(VisionConstants.CAMERAS[i]);
-        }
-        vision = new Vision(cameras);
+        vision = createVision(VisionIOPhotonVision::new);
       }
       case SIM -> {
         driveSimulation =
@@ -79,13 +77,11 @@ public class RobotContainer {
                   driveSimulation.setSimulationWorldPose(pose);
                   VisionIOPhotonVisionSim.resetSimulationPose(pose);
                 });
-        VisionIO[] cameras = new VisionIO[VisionConstants.CAMERAS.length];
-        for (int i = 0; i < cameras.length; i++) {
-          cameras[i] =
-              new VisionIOPhotonVisionSim(
-                  VisionConstants.CAMERAS[i], driveSimulation::getSimulatedDriveTrainPose);
-        }
-        vision = new Vision(cameras);
+        vision =
+            createVision(
+                camera ->
+                    new VisionIOPhotonVisionSim(
+                        camera, driveSimulation::getSimulatedDriveTrainPose));
         drive.setPose(SIM_STARTING_POSE);
       }
       default -> {
@@ -97,11 +93,7 @@ public class RobotContainer {
                 new ModuleIO() {},
                 new ModuleIO() {},
                 pose -> {});
-        VisionIO[] cameras = new VisionIO[VisionConstants.CAMERAS.length];
-        for (int i = 0; i < cameras.length; i++) {
-          cameras[i] = new VisionIO() {};
-        }
-        vision = new Vision(cameras);
+        vision = createVision(camera -> new VisionIO() {});
       }
     }
 
@@ -109,6 +101,17 @@ public class RobotContainer {
     AutoRoutines.configure(drive);
     autoChooser = AutoRoutines.buildChooser(drive);
     configureBindings();
+  }
+
+  private static Vision createVision(Function<CameraConfig, VisionIO> cameraFactory) {
+    VisionIO[] cameras = new VisionIO[VisionConstants.CAMERAS.length];
+    for (int i = 0; i < cameras.length; i++) {
+      cameras[i] =
+          VisionConstants.ENABLED
+              ? cameraFactory.apply(VisionConstants.CAMERAS[i])
+              : new VisionIO() {};
+    }
+    return new Vision(cameras);
   }
 
   private DoubleSupplier driverForward() {

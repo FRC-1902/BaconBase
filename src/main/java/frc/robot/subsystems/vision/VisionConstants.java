@@ -19,6 +19,13 @@ public final class VisionConstants {
 
   public record CameraConfig(String name, Transform3d robotToCamera, double stdDevFactor) {}
 
+  // TODO: VISION ON/OFF
+  // How to turn vision back on:
+  //   1. Plug the cameras and coprocessor back in and do the camera setup steps below.
+  //   2. Set ENABLED = true and deploy.
+  //   3. Check "Vision/Camera/<name>/Connected" is true for every camera.
+  public static final boolean ENABLED = false;
+
   // TODO: CAMERA NAMES
   // How to set up:
   //   1. Open the PhotonVision UI: http://photonvision.local:5800 or http://10.19.2.200:5800 (may

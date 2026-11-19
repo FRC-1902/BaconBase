@@ -8,13 +8,10 @@ import static edu.wpi.first.units.Units.Meters;
 import com.ctre.phoenix6.CANBus;
 import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.RobotConfig;
-import edu.wpi.first.math.VecBuilder;
-import edu.wpi.first.math.controller.LinearQuadraticRegulator;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.units.measure.MomentOfInertia;
@@ -126,21 +123,16 @@ public final class DriveConstants {
   //      increase. If not, fix the Pigeon mount pose in Phoenix Tuner X.
   public static final ModuleSetup[] MODULES = {
     new ModuleSetup(
-        "FrontLeft", 3, 2, 20, Rotation2d.kZero, new Translation2d(Inches.of(11), Inches.of(11))),
+        "FrontLeft", 9, 10, 43, Rotation2d.kZero, new Translation2d(Inches.of(12), Inches.of(12))),
     new ModuleSetup(
-        "FrontRight",
-        35,
-        15,
-        21,
-        Rotation2d.kZero,
-        new Translation2d(Inches.of(11), Inches.of(-11))),
+        "FrontRight", 6, 5, 40, Rotation2d.kZero, new Translation2d(Inches.of(12), Inches.of(-12))),
     new ModuleSetup(
-        "BackLeft", 5, 8, 22, Rotation2d.kZero, new Translation2d(Inches.of(-11), Inches.of(11))),
+        "BackLeft", 1, 2, 42, Rotation2d.kZero, new Translation2d(Inches.of(-12), Inches.of(12))),
     new ModuleSetup(
-        "BackRight", 9, 13, 23, Rotation2d.kZero, new Translation2d(Inches.of(-11), Inches.of(-11)))
+        "BackRight", 11, 4, 46, Rotation2d.kZero, new Translation2d(Inches.of(-12), Inches.of(-12)))
   };
 
-  public static final int PIGEON_ID = 47;
+  public static final int PIGEON_ID = 21;
 
   public static final CANBus CAN_BUS = new CANBus("rio");
 
@@ -161,15 +153,15 @@ public final class DriveConstants {
   //      vertical axis, in kg*m^2.
   //   3. WHEEL_COF: leave at 1.19 for SDS billet wheels with nitrile tread. Lower it if the wheels
   //      spin when accelerating hard.
-  public static final Mass ROBOT_MASS = Kilograms.of(62.6);
+  public static final Mass ROBOT_MASS = Kilograms.of(56.7);
 
   public static final double ROBOT_MOI = 6.883;
 
-  public static final double WHEEL_COF = 1.19;
+  public static final double WHEEL_COF = 1.15;
 
-  public static final Distance BUMPER_LENGTH = Meters.of(0.899);
+  public static final Distance BUMPER_LENGTH = Meters.of(0.876);
 
-  public static final Distance BUMPER_WIDTH = Meters.of(0.899);
+  public static final Distance BUMPER_WIDTH = Meters.of(0.864);
 
   // TODO: DRIVE kS / kV
   // How to measure:
@@ -197,7 +189,8 @@ public final class DriveConstants {
   //   3. If the motors buzz or the velocity oscillates, halve kP.
   //   4. If the velocity sags while pushing another robot, raise kP by 1.0.
   //   5. Leave kD at 0.
-  public static final double DRIVE_KP = theoreticalDriveKp();
+  //   Starting value is the 2025 robot's tuned YAGSL drive p (0.05 duty per m/s * 12 V).
+  public static final double DRIVE_KP = 0.6;
 
   public static final double DRIVE_KD = 0.0;
 
@@ -208,7 +201,8 @@ public final class DriveConstants {
   //   2. Flick the left stick in circles and left/right.
   //   3. Raise kP by 20% until the wheel wobbles before settling, then lower it by 20%.
   //   4. If it still wobbles, add kD in steps of 0.05. Lower it if the module buzzes.
-  public static final double STEER_KP = theoreticalSteerKp();
+  //   Starting value is the 2025 robot's tuned YAGSL steer p (0.01 duty per degree * 12 V).
+  public static final double STEER_KP = 0.01 * 12.0 * 180.0 / Math.PI;
 
   public static final double STEER_KD = 0.0;
 
@@ -325,24 +319,6 @@ public final class DriveConstants {
         * wheelRadiusMeters()
         * motor.rOhms
         / (HARDWARE.driveRatio() * motor.KtNMPerAmp);
-  }
-
-  private static double theoreticalDriveKp() {
-    var plant = LinearSystemId.identifyVelocitySystem(DRIVE_KV, DRIVE_KA);
-    var regulator =
-        new LinearQuadraticRegulator<>(plant, VecBuilder.fill(0.1), VecBuilder.fill(12.0), 0.001);
-    regulator.latencyCompensate(plant, 0.001, 0.015);
-    return regulator.getK().get(0, 0);
-  }
-
-  private static double theoreticalSteerKp() {
-    DCMotor motor = HARDWARE.steerMotor();
-    double ratio = HARDWARE.steerRatio();
-    double inertia = HARDWARE.steerInertia().in(KilogramSquareMeters);
-    double damping = ratio * ratio * motor.KtNMPerAmp / (motor.rOhms * motor.KvRadPerSecPerVolt);
-    double torquePerVolt = ratio * motor.KtNMPerAmp / motor.rOhms;
-    double dampingRatio = 0.5;
-    return damping * damping / (4.0 * dampingRatio * dampingRatio * inertia * torquePerVolt);
   }
 
   private static int theoreticalSlipCurrentLimit() {
