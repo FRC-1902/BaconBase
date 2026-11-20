@@ -2,6 +2,7 @@ package frc.robot.subsystems.drive;
 
 import static edu.wpi.first.units.Units.Meters;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
@@ -11,6 +12,10 @@ import frc.robot.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 
 public class Module {
+
+  private static final double KS_RAMP_METERS_PER_SEC = 0.05;
+
+  private static final double STEER_ENCODER_MISMATCH_DEGREES = 5.0;
 
   private static final LoggedTunableNumber DRIVE_KS =
       new LoggedTunableNumber("Drive/DriveKs", DriveConstants.DRIVE_KS);
@@ -45,6 +50,8 @@ public class Module {
 
   private final Alert encoderDisconnectedAlert;
 
+  private final Alert steerEncoderMismatchAlert;
+
   private SwerveModulePosition[] odometryPositions = new SwerveModulePosition[] {};
 
   public Module(ModuleIO io, String name) {
@@ -56,6 +63,12 @@ public class Module {
         new Alert("Disconnected steer motor on " + name + " module.", AlertType.kError);
     encoderDisconnectedAlert =
         new Alert("Disconnected CANcoder on " + name + " module.", AlertType.kError);
+    steerEncoderMismatchAlert =
+        new Alert(
+            "Steer motor encoder and CANcoder disagree on "
+                + name
+                + " module. Check its CANcoder ID, direction and magnet.",
+            AlertType.kWarning);
   }
 
   public void periodic() {
@@ -80,6 +93,16 @@ public class Module {
     driveDisconnectedAlert.set(!inputs.driveConnected);
     steerDisconnectedAlert.set(!inputs.steerConnected);
     encoderDisconnectedAlert.set(!inputs.encoderConnected);
+
+    double steerEncoderErrorDegrees =
+        Math.toDegrees(
+            MathUtil.angleModulus(
+                inputs.steerPosition.minus(inputs.absolutePosition).getRadians()));
+    Logger.recordOutput(
+        "Drive/Module/" + name + "/SteerEncoderErrorDegrees", steerEncoderErrorDegrees);
+    steerEncoderMismatchAlert.set(
+        inputs.encoderConnected
+            && Math.abs(steerEncoderErrorDegrees) > STEER_ENCODER_MISMATCH_DEGREES);
   }
 
   public void runSetpoint(SwerveModuleState state, double accelerationMetersPerSecSq) {
@@ -87,7 +110,7 @@ public class Module {
     double velocity = state.speedMetersPerSecond * cosineScale;
     double acceleration = accelerationMetersPerSecSq * cosineScale;
     double feedforwardVolts =
-        DRIVE_KS.get() * Math.signum(velocity)
+        DRIVE_KS.get() * MathUtil.clamp(velocity / KS_RAMP_METERS_PER_SEC, -1.0, 1.0)
             + DRIVE_KV.get() * velocity
             + DRIVE_KA.get() * acceleration;
     io.setDriveVelocity(velocity, feedforwardVolts);

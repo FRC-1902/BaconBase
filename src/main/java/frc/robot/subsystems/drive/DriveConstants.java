@@ -236,11 +236,11 @@ public final class DriveConstants {
   //   2. Only raise it if "/SystemStats/CANBus/Utilization" stays under 70%.
   public static final double ODOMETRY_FREQUENCY_HZ = 100.0;
 
-  // TODO: STEER ENCODER RE-SYNC
+  // TODO: STEER ENCODER RE-SYNC (only runs while disabled)
   // How to tune:
-  //   1. Watch "Drive/Module/<Name>/SteerResyncCount" during normal driving.
-  //   2. If it keeps increasing on one module, check that module's CANcoder magnet and steer gear.
-  //   3. If it increases on a healthy module, raise STEER_RESYNC_THRESHOLD_RADIANS.
+  //   1. Drive around, then watch "Drive/Module/<Name>/SteerEncoderErrorDegrees".
+  //   2. A healthy MK4i stays within a few degrees (gear backlash).
+  //   3. If one module drifts far from 0, check that module's CANcoder ID, magnet and steer gear.
   public static final double STEER_RESYNC_THRESHOLD_RADIANS = Math.toRadians(1.0);
 
   public static final double STEER_RESYNC_MAX_VELOCITY_RAD_PER_SEC = 0.05;

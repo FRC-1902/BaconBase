@@ -30,6 +30,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.util.PhoenixUtil;
 import frc.robot.util.SparkUtil;
 import java.util.Queue;
@@ -249,7 +250,7 @@ public class ModuleIOSpark implements ModuleIO {
     inputs.absolutePositionRaw = absolutePositionRaw;
     inputs.absolutePosition = absolutePosition;
 
-    updateSteerResync(encoderOk && steerOk);
+    updateSteerResync(encoderOk && steerOk && DriverStation.isDisabled());
 
     inputs.drivePositionMeters = correctDrivePosition(driveRawPositionMeters, steerPositionRad);
     inputs.driveVelocityMetersPerSec =

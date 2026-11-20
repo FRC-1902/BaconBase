@@ -35,6 +35,8 @@ public final class DriveCommands {
 
   private static final double HEADING_HOLD_RELATCH_RADIANS = Math.toRadians(30.0);
 
+  private static final double HEADING_HOLD_DEADBAND_RADIANS = Math.toRadians(1.0);
+
   private DriveCommands() {}
 
   public static double applyInputCurve(double magnitude) {
@@ -237,7 +239,12 @@ public final class DriveCommands {
             && Math.abs(target.minus(heading).getRadians()) > HEADING_HOLD_RELATCH_RADIANS) {
           target = heading;
         }
-        omega = target == null ? 0.0 : HEADING_HOLD_KP.get() * target.minus(heading).getRadians();
+        omega =
+            target == null
+                ? 0.0
+                : HEADING_HOLD_KP.get()
+                    * MathUtil.applyDeadband(
+                        target.minus(heading).getRadians(), HEADING_HOLD_DEADBAND_RADIANS, Math.PI);
       }
       Logger.recordOutput("Teleop/HeadingHoldActive", target != null);
       Logger.recordOutput("Teleop/HeadingHoldTarget", target == null ? heading : target);
