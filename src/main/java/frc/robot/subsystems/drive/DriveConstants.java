@@ -73,7 +73,7 @@ public final class DriveConstants {
   // How to check encoderClockwisePositive:
   //   1. Robot disabled, turn a module counterclockwise by hand.
   //   2. "Drive/Module/<Name>/AbsolutePosition" must increase. If it decreases, set true.
-  
+
   public static final SwerveModuleHardware MK4I_L2_NEO_SPARKMAX =
       new SwerveModuleHardware(
           "MK4i L2 NEO SparkMax",
@@ -124,13 +124,33 @@ public final class DriveConstants {
   //      increase. If not, fix the Pigeon mount pose in Phoenix Tuner X.
   public static final ModuleSetup[] MODULES = {
     new ModuleSetup(
-        "FrontLeft", 9, 10, 43, Rotation2d.fromRadians(1.181), new Translation2d(Inches.of(12), Inches.of(12))),
+        "FrontLeft",
+        9,
+        10,
+        43,
+        Rotation2d.fromRadians(1.181),
+        new Translation2d(Inches.of(12), Inches.of(12))),
     new ModuleSetup(
-        "FrontRight", 6, 5, 40, Rotation2d.fromRadians(2.203), new Translation2d(Inches.of(12), Inches.of(-12))),
+        "FrontRight",
+        6,
+        5,
+        40,
+        Rotation2d.fromRadians(2.203),
+        new Translation2d(Inches.of(12), Inches.of(-12))),
     new ModuleSetup(
-        "BackLeft", 1, 2, 42, Rotation2d.fromRadians(0.084), new Translation2d(Inches.of(-12), Inches.of(12))),
+        "BackLeft",
+        1,
+        2,
+        42,
+        Rotation2d.fromRadians(0.084),
+        new Translation2d(Inches.of(-12), Inches.of(12))),
     new ModuleSetup(
-        "BackRight", 11, 4, 46, Rotation2d.fromRadians(-1.416), new Translation2d(Inches.of(-12), Inches.of(-12)))
+        "BackRight",
+        11,
+        4,
+        46,
+        Rotation2d.fromRadians(-1.416),
+        new Translation2d(Inches.of(-12), Inches.of(-12)))
   };
 
   public static final int PIGEON_ID = 21;
