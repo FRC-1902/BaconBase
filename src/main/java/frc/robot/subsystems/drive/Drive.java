@@ -30,6 +30,8 @@ public class Drive extends SubsystemBase {
 
   static final Lock ODOMETRY_LOCK = new ReentrantLock();
 
+  private static final double SETPOINT_GENERATOR_VOLTAGE = 12.0;
+
   private final GyroIO gyroIO;
 
   private final GyroIOInputsAutoLogged gyroInputs = new GyroIOInputsAutoLogged();
@@ -152,11 +154,14 @@ public class Drive extends SubsystemBase {
   public void runVelocity(ChassisSpeeds robotRelativeSpeeds) {
     previousSetpoint =
         setpointGenerator.generateSetpoint(
-            previousSetpoint, robotRelativeSpeeds, Constants.LOOP_PERIOD_SECONDS);
+            previousSetpoint,
+            robotRelativeSpeeds,
+            null,
+            Constants.LOOP_PERIOD_SECONDS,
+            SETPOINT_GENERATOR_VOLTAGE);
     SwerveModuleState[] states = previousSetpoint.moduleStates();
-    double[] accelerations = previousSetpoint.feedforwards().accelerationsMPSSq();
     for (int i = 0; i < modules.length; i++) {
-      modules[i].runSetpoint(states[i], accelerations[i]);
+      modules[i].runSetpoint(states[i], 0.0);
     }
     Logger.recordOutput("Drive/ChassisSpeeds/Desired", robotRelativeSpeeds);
     Logger.recordOutput("Drive/ChassisSpeeds/Setpoint", previousSetpoint.robotRelativeSpeeds());

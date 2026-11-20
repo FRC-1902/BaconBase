@@ -83,7 +83,7 @@ public final class Constants {
     //   3. If heading drifts more than 2 deg, raise kP by 1.0. If it wiggles, lower kP by 1.0.
     //   4. If it snaps back after you stop spinning, raise the delay by 0.05 s.
     //   5. Set HEADING_HOLD_ENABLED = false if the driver doesn't want it.
-    public static final boolean HEADING_HOLD_ENABLED = false;
+    public static final boolean HEADING_HOLD_ENABLED = true;
 
     public static final double HEADING_HOLD_KP = 4.0;
 

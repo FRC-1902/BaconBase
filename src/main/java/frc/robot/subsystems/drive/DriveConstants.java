@@ -73,14 +73,15 @@ public final class DriveConstants {
   // How to check encoderClockwisePositive:
   //   1. Robot disabled, turn a module counterclockwise by hand.
   //   2. "Drive/Module/<Name>/AbsolutePosition" must increase. If it decreases, set true.
-  public static final SwerveModuleHardware MK4I_L3_NEO_SPARKMAX =
+  
+  public static final SwerveModuleHardware MK4I_L2_NEO_SPARKMAX =
       new SwerveModuleHardware(
-          "MK4i L3 NEO SparkMax",
+          "MK4i L2 NEO SparkMax",
           DCMotor.getNEO(1),
           MotorControllerType.SPARK_MAX,
           DCMotor.getNEO(1),
           MotorControllerType.SPARK_MAX,
-          (50.0 / 14.0) * (16.0 / 28.0) * (45.0 / 15.0),
+          (50.0 / 14.0) * (17.0 / 27.0) * (45.0 / 15.0),
           150.0 / 7.0,
           0.0,
           Inches.of(2.0),
@@ -98,7 +99,7 @@ public final class DriveConstants {
   public static final SwerveModuleHardware MK5N_R3_VORTEX_SPARKFLEX =
       mk5nVortexSparkFlex("MK5n R3 Vortex SparkFlex", 5.27);
 
-  public static final SwerveModuleHardware HARDWARE = MK4I_L3_NEO_SPARKMAX;
+  public static final SwerveModuleHardware HARDWARE = MK4I_L2_NEO_SPARKMAX;
 
   // TODO: CAN IDS, ENCODER OFFSETS, MODULE LOCATIONS
   // How to set up:
